@@ -1,0 +1,275 @@
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #04070e;
+  touch-action: pan-x pan-y;
+}
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+#map {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+.glass-panel {
+  background: rgba(9, 13, 22, 0.92);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+}
+
+.veh-pill {
+  padding: 0.25rem 0.45rem;
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.veh-pill:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.09);
+}
+.active-veh {
+  background: rgba(16, 185, 129, 0.2) !important;
+  border-color: #34d399 !important;
+  color: #6ee7b7 !important;
+}
+
+.dock-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 0.8rem;
+  background: rgba(9, 13, 22, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
+  transition: all 0.16s ease;
+  cursor: pointer;
+}
+@media (min-width: 640px) {
+  .dock-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 0.85rem;
+  }
+}
+.dock-btn:hover {
+  background: rgba(20, 29, 47, 0.98);
+  border-color: #22d3ee;
+  transform: translateY(-1px);
+}
+
+.layer-pill {
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+.active-layer {
+  background: rgba(6, 182, 212, 0.2) !important;
+  border-color: #22d3ee !important;
+  color: #ffffff !important;
+}
+
+.filter-pill {
+  padding: 0.3rem 0.65rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.active-filter {
+  background: rgba(6, 182, 212, 0.2) !important;
+  border-color: #22d3ee !important;
+  color: #22d3ee !important;
+}
+
+.quick-chip {
+  padding: 0.32rem 0.6rem;
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+.quick-chip:hover {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: #22d3ee;
+  color: #ffffff;
+}
+
+.autocomplete-box {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  background: #090d16;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.8rem;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.92);
+  z-index: 60;
+  max-height: 210px;
+  overflow-y: auto;
+}
+.autocomplete-item {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.73rem;
+  color: #e2e8f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.autocomplete-item:hover {
+  background: rgba(6, 182, 212, 0.18);
+  color: #38bdf8;
+}
+
+.equalizer {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 11px;
+}
+.equalizer span {
+  display: block;
+  width: 2px;
+  height: 5px;
+  background: #22d3ee;
+  border-radius: 2px;
+}
+.equalizer.active span {
+  animation: eq-bounce 0.8s infinite ease-in-out;
+}
+.equalizer.active span:nth-child(2) { animation-delay: 0.15s; }
+.equalizer.active span:nth-child(3) { animation-delay: 0.3s; }
+.equalizer.active span:nth-child(4) { animation-delay: 0.45s; }
+@keyframes eq-bounce {
+  0%, 100% { height: 4px; }
+  50% { height: 12px; background: #34d399; }
+}
+
+.vehicle-puck-wrapper {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+.vehicle-puck-halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.24);
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  animation: gps-halo 2s infinite ease-out;
+}
+.vehicle-puck-core {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #10b981 30%, #059669 100%);
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 11px;
+}
+@keyframes gps-halo {
+  0% { transform: scale(0.8); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.mic-recording {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  animation: pulse-ring 1.4s infinite;
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8); }
+  70% { box-shadow: 0 0 0 14px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.map-dark-filter canvas {
+  filter: invert(0.92) hue-rotate(185deg) brightness(0.93) contrast(1.15);
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #04070e; }
+::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+
+
+.sv-landmark-card {
+  background: rgba(9, 13, 22, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.9rem;
+  padding: 0.55rem 0.75rem;
+  min-width: 185px;
+  max-width: 240px;
+  shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.sv-landmark-card:hover {
+  border-color: #38bdf8;
+  transform: translateY(-2px);
+}
+
+.dock-active-mode {
+  border-color: #2dd4bf !important;
+  background: rgba(45, 212, 191, 0.2) !important;
+  color: #5eead4 !important;
+}
+
+.sv-radar-cone {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translate(-50%, -100%);
+  border-left: 24px solid transparent;
+  border-right: 24px solid transparent;
+  border-bottom: 44px solid rgba(34, 211, 238, 0.28);
+  pointer-events: none;
+}

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#04070e">
+  <title>WayFind Map | Accurate Vehicle Travel Time & AI Navigator</title>
+  <link rel="icon" type="image/png" href="./icon-512.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://mt0.google.com">
+  <link rel="preconnect" href="https://mt1.google.com">
+  <link rel="preconnect" href="https://mt2.google.com">
+  <link rel="preconnect" href="https://mt3.google.com">
+  <link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="manifest" href="./manifest.json">
+</head>
+<body class="bg-[#04070e] text-slate-100 h-dvh w-screen overflow-hidden relative select-none">
+
+  <!-- FULLSCREEN 60FPS WORLDWIDE DETAILED MAP -->
+  <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
+
+  <!-- TOP SEARCH & VEHICLE ETA ISLAND -->
+  <div id="topSearchIsland" class="absolute top-2.5 left-2.5 right-14 sm:top-3.5 sm:left-3.5 sm:right-auto sm:w-[445px] z-20 pointer-events-auto flex flex-col gap-2">
+    
+    <div class="glass-panel rounded-2xl p-2.5 sm:p-3 shadow-2xl space-y-1.5 sm:space-y-2">
+      
+      <!-- Vehicle Selector Bar (Car / Bike / Walk) -> Updates exact travel time immediately -->
+      <div class="flex items-center justify-between gap-1.5 pb-1 border-b border-white/[0.06]">
+        <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+          <i class="fa-solid fa-gauge-high text-cyan-400"></i> Vehicle
+        </span>
+        <div class="grid grid-cols-3 gap-1 flex-1 max-w-[260px]">
+          <button onclick="setVehicleMode('car')" id="veh-car" class="veh-pill active-veh">
+            <i class="fa-solid fa-car"></i> Car
+          </button>
+          <button onclick="setVehicleMode('bike')" id="veh-bike" class="veh-pill">
+            <i class="fa-solid fa-motorcycle"></i> Bike
+          </button>
+          <button onclick="setVehicleMode('walk')" id="veh-walk" class="veh-pill">
+            <i class="fa-solid fa-person-walking"></i> Walk
+          </button>
+        </div>
+      </div>
+
+      <!-- 1. EXACT START LOCATION / GPS CALIBRATOR -->
+      <div class="relative flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 ring-4 ring-emerald-500/20"></span>
+        <div class="relative flex-1 min-w-0">
+          <input id="originSearchInput" type="text" autocomplete="off"
+            oninput="handleAutocomplete('origin', this.value)"
+            class="w-full bg-[#050811]/90 border border-white/10 focus:border-emerald-400 rounded-xl pl-2.5 pr-16 py-1.5 text-[11px] sm:text-xs text-emerald-200 placeholder-slate-400 focus:outline-none transition"
+            placeholder="My Start Location..." />
+          <div class="absolute right-1 top-1 flex items-center gap-1">
+            <button onclick="lockHardwareGPS()" class="px-1.5 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold" title="Refresh Live GPS">
+              <i class="fa-solid fa-crosshairs"></i>
+            </button>
+            <button onclick="enableDirectOriginClick()" class="px-1.5 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-[10px]" title="Tap exact spot on map">
+              <i class="fa-solid fa-map-pin"></i>
+            </button>
+          </div>
+          <div id="originResultsBox" class="autocomplete-box hidden"></div>
+        </div>
+      </div>
+
+      <!-- 2. WORLDWIDE DESTINATION SEARCH -->
+      <div class="relative flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shrink-0 ring-4 ring-cyan-500/20"></span>
+        <div class="relative flex-1 min-w-0">
+          <input id="destSearchInput" type="text" autocomplete="off"
+            oninput="handleAutocomplete('dest', this.value)"
+            onkeydown="if(event.key==='Enter') executeDestSearch()"
+            class="w-full bg-[#050811]/90 border border-white/10 focus:border-cyan-400 rounded-xl pl-2.5 pr-14 py-1.5 sm:py-2 text-xs font-semibold text-white placeholder-slate-400 focus:outline-none transition"
+            placeholder="Where to? Any store, place or city..." />
+          <div class="absolute right-1 top-1 flex items-center gap-1">
+            <button onclick="executeDestSearch()" class="px-2.5 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-lg text-[11px] font-extrabold transition">
+              Go
+            </button>
+          </div>
+          <div id="destResultsBox" class="autocomplete-box hidden"></div>
+        </div>
+
+        <button onclick="toggleDetailsDrawer()" class="h-8 px-2 sm:px-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-cyan-300 flex items-center gap-1 shrink-0 text-xs font-bold transition" title="Open Nearby Places, Hazards & Offline Routes">
+          <i class="fa-solid fa-store"></i>
+          <span id="microPoiCount" class="font-mono text-[10px] sm:text-[11px]">0</span>
+        </button>
+      </div>
+
+      <!-- Live Street & Accuracy Strip -->
+      <div class="flex items-center justify-between pt-1 border-t border-white/[0.07] text-[10px] gap-1">
+        <div class="flex items-center gap-1.5 truncate flex-1">
+          <i class="fa-solid fa-road text-cyan-400 shrink-0"></i>
+          <span id="liveStreetText" class="font-semibold text-slate-300 truncate">Locating live street...</span>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <span id="hazardBadge" class="hidden sm:inline font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">0 Hazards</span>
+          <span id="gpsPrecisionTag" class="font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">GPS Live</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ACTIVE TURN-BY-TURN & ACCURATE VEHICLE ETA HUD -->
+    <div id="activeManeuverHud" class="hidden glass-panel rounded-2xl p-2.5 sm:p-3 shadow-2xl border-l-4 border-l-emerald-400 items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 min-w-0 flex-1">
+        <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-sm sm:text-lg shrink-0 shadow-md">
+          <i id="hudTurnIcon" class="fa-solid fa-arrow-up"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+          <!-- Prominent Duration & Arrival Clock Row -->
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span id="hudDurationBadge" class="text-xs sm:text-sm font-mono font-extrabold text-emerald-400">-- min</span>
+            <span id="hudArrivalClock" class="text-[10px] sm:text-[11px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-200 border border-emerald-500/30 font-bold">ETA --:--</span>
+            <span id="hudEtaDist" class="text-[10px] sm:text-[11px] font-mono text-cyan-300 font-bold">-- km</span>
+          </div>
+          <div id="hudTurnText" class="text-xs sm:text-sm font-bold text-white truncate mt-0.5">Follow road</div>
+          <div id="hudLandmarkCue" class="text-[10px] text-amber-300 truncate font-medium">Landmark cue ready...</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1 shrink-0">
+        <button id="autopilotBtn" onclick="toggleSmoothAutopilot()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-[11px] sm:text-xs flex items-center gap-1 shadow-lg transition">
+          <i class="fa-solid fa-play text-[10px]"></i>
+          <span id="autopilotLabel">Drive</span>
+        </button>
+        <button onclick="stopNavigation()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition" title="Clear Route">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT FLOATING DOCK -->
+  <div class="absolute right-2.5 sm:right-3.5 top-2.5 sm:top-3.5 z-20 flex flex-col gap-1.5 sm:gap-2 pointer-events-auto">
+    <button onclick="toggleLayerPopover()" class="dock-btn text-cyan-400" title="Map & Satellite Layers">
+      <i class="fa-solid fa-layer-group text-xs sm:text-sm"></i>
+    </button>
+    <button onclick="lockHardwareGPS()" class="dock-btn text-emerald-400" title="Recenter on My Live Location">
+      <i class="fa-solid fa-location-crosshairs text-xs sm:text-sm"></i>
+    </button>
+            <button onclick="toggleFreeMapExploration()" id="freeExploreBtn" class="dock-btn text-teal-300" title="Free Map Exploration (Unlock Camera & Zoom Anywhere)">
+      <i class="fa-solid fa-hand text-xs sm:text-sm"></i>
+    </button>
+    <button onclick="toggleCloseVsWideView()" id="closeWideBtn" class="dock-btn text-indigo-300 font-mono font-extrabold text-[10px] sm:text-[11px]" title="Toggle Close Street Zoom vs Whole-Map Overview">
+      CLOSE
+    </button>
+        <button onclick="openCloseStreetViewAtCurrent()" class="dock-btn text-amber-300" title="Close Street & 360° View Here">
+      <i class="fa-solid fa-binoculars text-xs sm:text-sm"></i>
+    </button>
+    <button onclick="toggleStreetViewMode()" id="streetViewBtn" class="dock-btn text-sky-400" title="Open Ground-Level Street View">
+      <i class="fa-solid fa-street-view text-xs sm:text-sm"></i>
+    </button>
+    <button onclick="toggle3DCamera()" id="btn3DToggle" class="dock-btn text-slate-200 font-mono font-extrabold text-[11px] sm:text-xs" title="Toggle 3D Tilt">
+      3D
+    </button>
+    <button onclick="toggleDriveFocusMode()" id="focusModeBtn" class="dock-btn text-sky-400" title="Drive Focus Mode">
+      <i class="fa-solid fa-eye text-xs sm:text-sm"></i>
+    </button>
+    <button onclick="quickReportHazardHere()" class="dock-btn text-amber-400" title="Report Road Hazard Here">
+      <i class="fa-solid fa-triangle-exclamation text-xs sm:text-sm"></i>
+    </button>
+    <button onclick="routeNearestMedicalSideOption()" class="dock-btn text-rose-400/80 hover:text-rose-300 border-white/10" title="Side Option: Nearest Hospital / Pharmacy">
+      <i class="fa-solid fa-notes-medical text-xs"></i>
+    </button>
+    <button onclick="toggleAiSettingsModal()" class="dock-btn text-purple-400" title="AI Co-Pilot Settings">
+      <i class="fa-solid fa-sliders text-xs"></i>
+    </button>
+  </div>
+
+  <!-- LAYER SWITCHER POPOVER -->
+  <div id="layerPopover" class="hidden absolute top-14 right-12 sm:top-3.5 sm:right-16 z-30 w-64 sm:w-72 glass-panel rounded-2xl p-3 shadow-2xl pointer-events-auto">
+    <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-[11px] font-extrabold uppercase tracking-wider text-slate-300">
+      <span>Global Map Layers</span>
+      <button onclick="toggleLayerPopover()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="grid grid-cols-2 gap-1.5 text-xs font-bold">
+      <button onclick="setMapLayer('gmap_detail')" id="btn-gmap_detail" class="layer-pill active-layer col-span-2">
+        <i class="fa-solid fa-map-location-dot text-cyan-400"></i> Global Streets & Every Place Name
+      </button>
+      <button onclick="setMapLayer('hybrid')" id="btn-hybrid" class="layer-pill">
+        <i class="fa-solid fa-earth-asia text-emerald-400"></i> Hybrid Sat + Names
+      </button>
+      <button onclick="setMapLayer('satellite')" id="btn-satellite" class="layer-pill">
+        <i class="fa-solid fa-satellite text-amber-400"></i> Pure Sat
+      </button>
+      <button onclick="setMapLayer('osm_detail')" id="btn-osm_detail" class="layer-pill">
+        <i class="fa-solid fa-store text-blue-400"></i> OSM Shops
+      </button>
+      <button onclick="setMapLayer('dark')" id="btn-dark" class="layer-pill">
+        <i class="fa-solid fa-moon text-purple-400"></i> Night Mode
+      </button>
+    </div>
+    <div class="mt-2.5 pt-2 border-t border-white/10 space-y-1.5 text-[11px] text-slate-300">
+      <label class="flex items-center justify-between cursor-pointer">
+        <span>Show Nearby Store Pins</span>
+        <input type="checkbox" id="poiVisibilityChk" checked onchange="togglePOIMarkers(this.checked)" class="accent-cyan-400 rounded cursor-pointer"/>
+      </label>
+    </div>
+  </div>
+
+  <!-- RESPONSIVE SLIDE-OUT DRAWER -->
+  <aside id="detailsDrawer" class="absolute top-0 right-0 bottom-0 w-full sm:w-[410px] glass-panel border-l border-white/10 z-30 transform translate-x-full transition-transform duration-300 flex flex-col shadow-2xl pointer-events-auto">
+    <div class="p-3.5 border-b border-white/10 flex items-center justify-between">
+      <div class="min-w-0 pr-2">
+        <div class="text-xs font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+          <i class="fa-solid fa-compass"></i> Surroundings, Hazards & Offline Cache
+        </div>
+        <div id="drawerAddressSub" class="text-[10px] text-slate-400 truncate mt-0.5">Live street & offline SQLite cache</div>
+      </div>
+      <button onclick="toggleDetailsDrawer()" class="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 flex items-center justify-center shrink-0">
+        <i class="fa-solid fa-xmark text-sm"></i>
+      </button>
+    </div>
+
+    <div class="p-2.5 border-b border-white/10 bg-[#050811]/60 space-y-2">
+      <input id="drawerFilterInput" type="text" oninput="renderMicroDrawerList()" placeholder="Filter nearby (kirana, general store, ATM, tea)..."
+        class="w-full bg-[#050811] border border-white/10 focus:border-cyan-400 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none" />
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        <button onclick="filterCategory('all')" id="cat-all" class="filter-pill active-filter">All</button>
+        <button onclick="filterCategory('store')" id="cat-store" class="filter-pill"><i class="fa-solid fa-basket-shopping text-amber-400 mr-1"></i>Stores</button>
+        <button onclick="filterCategory('food')" id="cat-food" class="filter-pill"><i class="fa-solid fa-mug-hot text-orange-400 mr-1"></i>Food/Chai</button>
+        <button onclick="filterCategory('fuel_auto')" id="cat-fuel_auto" class="filter-pill"><i class="fa-solid fa-gas-pump text-emerald-400 mr-1"></i>Fuel</button>
+        <button onclick="filterCategory('civic_finance')" id="cat-civic_finance" class="filter-pill"><i class="fa-solid fa-building-columns text-purple-400 mr-1"></i>ATM</button>
+        <button onclick="filterCategory('medical')" id="cat-medical" class="filter-pill"><i class="fa-solid fa-kit-medical text-rose-400 mr-1"></i>Medical</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-4 border-b border-white/10 bg-[#050811] text-[10px] font-bold">
+      <button id="tabPoisBtn" onclick="switchDrawerTab('pois')" class="py-2 text-cyan-400 border-b-2 border-cyan-400">Places</button>
+      <button id="tabStepsBtn" onclick="switchDrawerTab('steps')" class="py-2 text-slate-400 hover:text-white">Steps (<span id="stepsCountBadge">0</span>)</button>
+      <button id="tabHazardsBtn" onclick="switchDrawerTab('hazards')" class="py-2 text-slate-400 hover:text-white">Hazards (<span id="hazardsCountBadge">0</span>)</button>
+      <button id="tabOfflineBtn" onclick="switchDrawerTab('offline')" class="py-2 text-slate-400 hover:text-white">Offline (<span id="offlineRoutesBadge">0</span>)</button>
+    </div>
+
+    <div id="drawerPoisList" class="flex-1 overflow-y-auto p-2.5 space-y-1.5"></div>
+    <div id="drawerStepsList" class="hidden flex-1 overflow-y-auto p-2.5 space-y-1.5"></div>
+    <div id="drawerHazardsList" class="hidden flex-1 overflow-y-auto p-2.5 space-y-1.5"></div>
+    <div id="drawerOfflineList" class="hidden flex-1 overflow-y-auto p-2.5 space-y-1.5"></div>
+  </aside>
+
+  <!-- BOTTOM INTELLIGENT MULTI-TURN AI CO-PILOT CONSOLE -->
+  <div class="absolute bottom-2.5 left-2.5 right-2.5 sm:bottom-3.5 sm:left-3.5 sm:right-auto sm:w-[520px] z-20 pointer-events-auto pb-[env(safe-area-inset-bottom)]">
+    <div class="glass-panel rounded-2xl p-2.5 sm:p-3 shadow-2xl space-y-1.5 sm:space-y-2 border border-cyan-500/20">
+      
+      <div class="flex items-center justify-between border-b border-white/[0.06] pb-1.5">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="equalizer" id="aiEqualizer">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <span class="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 truncate">NaviVoice AI Co-Pilot</span>
+          <span id="aiBrainBadge" class="hidden md:inline text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">Vehicle ETA Engine</span>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <button onclick="toggleHandsFreeLoop()" id="handsFreeBtn" class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition">
+            <i class="fa-solid fa-ear-listen mr-1 text-cyan-400"></i><span id="handsFreeText">Hands-Free: OFF</span>
+          </button>
+          <span id="speedMiniBadge" class="text-[10px] font-mono font-bold text-emerald-400">0 km/h</span>
+        </div>
+      </div>
+
+      <div class="space-y-0.5">
+        <div id="voiceTranscriptLabel" class="text-[10px] sm:text-[11px] font-mono text-slate-400 italic truncate">
+          "Try: 'Switch to bike', 'How much time to reach?', or 'Navigate to...'"
+        </div>
+        <div id="assistantReplyText" class="text-[11px] sm:text-xs font-semibold text-slate-100 leading-snug">
+          Ready with vehicle-accurate travel time (Car, Bike, Walk), arrival clock, and landmark guidance.
+        </div>
+      </div>
+
+      <div id="quickChipsRow" class="flex items-center gap-1.5 pt-1 border-t border-white/[0.07]">
+        <input id="copilotInput" type="text" placeholder="Ask or type..."
+          onkeydown="if(event.key==='Enter') sendTypedAssistantQuery()"
+          class="w-28 xs:w-36 sm:w-44 bg-[#050811]/90 border border-white/10 focus:border-cyan-400 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none min-w-0" />
+
+        <div class="flex items-center gap-1 overflow-x-auto no-scrollbar flex-1 py-0.5">
+          <button onclick="submitVoiceText('Find nearest general store on my side')" class="quick-chip">
+            <i class="fa-solid fa-store text-amber-400"></i> Store
+          </button>
+          <button onclick="submitVoiceText('How far and how much time left?')" class="quick-chip">
+            <i class="fa-solid fa-clock text-emerald-400"></i> ETA Time
+          </button>
+          <button onclick="submitVoiceText('What is around me right now?')" class="quick-chip">
+            <i class="fa-solid fa-compass text-cyan-400"></i> Around Me
+          </button>
+        </div>
+
+        <button onclick="toggleVoiceAudio()" id="voiceAudioBtn" class="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-emerald-400 flex items-center justify-center shrink-0 text-xs">
+          <i class="fa-solid fa-volume-high"></i>
+        </button>
+
+        <button id="micOrbBtn" onclick="toggleMicrophone()" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg border border-white/20 active:scale-95 transition">
+          <i class="fa-solid fa-microphone text-xs"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTIONAL AI BRAIN SETTINGS MODAL -->
+  <div id="aiSettingsModal" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 glass-panel rounded-2xl p-4 shadow-2xl w-[90%] max-w-xs space-y-3 border border-purple-500/40">
+    <div class="flex items-center justify-between text-xs font-extrabold text-white">
+      <span class="text-purple-400"><i class="fa-solid fa-brain mr-1.5"></i>AI Co-Pilot Settings</span>
+      <button onclick="toggleAiSettingsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p class="text-[11px] text-slate-300 leading-relaxed">
+      Works out of the box with multi-turn memory & offline SQLite cache. Optionally add a <b>Gemini API Key</b>:
+    </p>
+    <input id="geminiKeyInput" type="password" placeholder="Optional: AIzaSy..."
+      class="w-full bg-[#050811] border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-400" />
+    <div class="flex justify-end gap-2">
+      <button onclick="saveGeminiKey()" class="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold">
+        Save Key
+      </button>
+    </div>
+  </div>
+
+  <!-- INTENTIONAL MAP CLICK CONFIRMATION POPUP -->
+  <div id="mapPinModal" class="hidden absolute bottom-28 left-1/2 transform -translate-x-1/2 z-40 glass-panel rounded-2xl p-3 shadow-2xl w-[90%] max-w-xs text-center space-y-2 border border-cyan-500/40">
+    <div class="flex items-center justify-between text-xs font-bold text-white">
+      <span class="flex items-center gap-1.5 text-cyan-400"><i class="fa-solid fa-location-dot"></i> Map Point Selected</span>
+      <button onclick="dismissPinModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="pinModalAddress" class="text-xs font-semibold text-slate-200 truncate">Inspecting exact street...</div>
+    <div id="pinModalCoords" class="text-[10px] text-slate-400 font-mono"></div>
+    <div class="grid grid-cols-3 gap-1.5 pt-1">
+      <button onclick="confirmPinAsStart()" class="py-1.5 px-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold">
+        Set My GPS
+      </button>
+      <button onclick="confirmPinAsWaypoint()" class="py-1.5 px-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[11px] font-bold">
+        + Stop
+      </button>
+      <button onclick="confirmPinDestination()" class="py-1.5 px-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-[11px] font-extrabold">
+        Route Here
+      </button>
+    </div>
+  </div>
+
+  
+  <!-- ULTRA 360° STREET VIEW & CLOSE EXPLORER OVERLAY -->
+  <div id="streetViewOverlay" class="hidden fixed inset-0 z-40 bg-[#04070e] flex flex-col select-none pointer-events-auto">
+    
+    <!-- Top Street View Control Bar -->
+    <div class="h-12 sm:h-14 px-2.5 sm:px-5 bg-[#090d16]/95 border-b border-white/10 flex items-center justify-between gap-1.5 shrink-0 z-10 overflow-x-auto no-scrollbar">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="px-2 py-0.5 rounded-md bg-sky-500/20 text-sky-300 border border-sky-400/30 font-mono text-[10px] font-extrabold uppercase shrink-0">
+          360° View
+        </span>
+        <div class="min-w-0">
+          <div id="svStreetTitle" class="text-xs sm:text-sm font-bold text-white truncate">Street View Explorer</div>
+          <div id="svCoordsSubtitle" class="text-[10px] font-mono text-slate-400 truncate">0.0000°N, 0.0000°E • Yaw 0° • Pitch 68°</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        <button onclick="rotateSvAngle(-45)" class="px-2 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-200 border border-white/10" title="Look Left 45°">
+          <i class="fa-solid fa-rotate-left"></i>
+        </button>
+        <button onclick="rotateSvAngle(45)" class="px-2 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-200 border border-white/10" title="Look Right 45°">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+        <button onclick="stepStreetViewAlongRoad(25)" class="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 text-xs font-bold border border-cyan-400/30" title="Step Forward 25m Along Street">
+          <i class="fa-solid fa-forward-step mr-1"></i><span class="hidden md:inline">Step +25m</span>
+        </button>
+        <button onclick="toggleSvAutoPan()" id="svAutoPanBtn" class="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-200 border border-white/10" title="Toggle Smooth 360° Auto-Scan">
+          <i class="fa-solid fa-arrows-spin mr-1"></i><span class="hidden md:inline">360° Spin</span>
+        </button>
+        <button onclick="adjustStreetViewZoom(-0.2)" class="px-2 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-200 border border-white/10" title="Zoom In Close">
+          <i class="fa-solid fa-magnifying-glass-plus"></i>
+        </button>
+        <button onclick="adjustStreetViewZoom(0.2)" class="px-2 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-200 border border-white/10" title="Zoom Out">
+          <i class="fa-solid fa-magnifying-glass-minus"></i>
+        </button>
+            <button onclick="openCloseStreetViewAtCurrent()" class="dock-btn text-amber-300" title="Close Street & 360° View Here">
+      <i class="fa-solid fa-binoculars text-xs sm:text-sm"></i>
+    </button>
+    <button onclick="toggleStreetViewMode()" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-extrabold flex items-center gap-1">
+          <i class="fa-solid fa-map"></i>
+          <span>Map</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Interactive 360° Street & Panorama Viewport -->
+    <div id="svViewport" class="flex-1 relative overflow-hidden cursor-grab active:cursor-grabbing bg-[#050914]">
+      
+      <!-- 360° Panorama + Street-Level Stage -->
+      <div id="svHorizonStage" class="absolute inset-0 transition-transform duration-75 ease-out origin-center flex items-center justify-center">
+        <div id="svMapMount" class="w-[160vw] h-[160vh] pointer-events-none"></div>
+      </div>
+
+      <!-- 360° Azimuth, Tilt & Zoom HUD -->
+      <div class="absolute top-3 left-1/2 transform -translate-x-1/2 px-3.5 py-1 rounded-full bg-[#090d16]/90 border border-white/15 text-[11px] font-mono font-bold text-cyan-300 shadow-lg pointer-events-none flex items-center gap-2">
+        <i class="fa-solid fa-compass"></i>
+        <span id="svCompassHeading">0° N</span>
+        <span class="text-slate-600">•</span>
+        <span id="svPitchReadout">Tilt 68°</span>
+        <span class="text-slate-600">•</span>
+        <span id="svZoomReadout">1.0x</span>
+        <span class="text-slate-600 hidden sm:inline">• Drag 360° to explore</span>
+      </div>
+
+      <!-- Street Radar Inset with 360° Bearing Cone -->
+      <div class="hidden sm:block absolute top-14 right-4 w-40 h-40 rounded-2xl overflow-hidden border-2 border-cyan-400/50 shadow-2xl bg-[#090d16] pointer-events-none">
+        <div id="svMinimapMount" class="w-full h-full"></div>
+        <div class="sv-radar-cone"></div>
+        <div class="absolute bottom-1 left-1 right-1 text-center text-[9px] font-mono font-bold bg-black/75 text-cyan-300 py-0.5">
+          360° Street Radar
+        </div>
+      </div>
+
+      <!-- Nearby Landmarks & Stores Along Street (Tap to inspect close or route) -->
+      <div id="svNearbyStrip" class="absolute bottom-4 left-3 right-3 sm:left-5 sm:right-5 flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 pointer-events-auto">
+      </div>
+
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
